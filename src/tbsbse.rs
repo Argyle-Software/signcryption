@@ -7,40 +7,30 @@ use libsodium_sys::{
   crypto_generichash_final, crypto_core_ed25519_scalar_reduce, 
   crypto_scalarmult_ed25519_base_noclamp, crypto_core_ed25519_scalar_mul, 
   crypto_core_ed25519_scalar_add, crypto_scalarmult_ed25519_noclamp, 
-  crypto_core_ed25519_add, crypto_core_ed25519_scalar_random, crypto_core_ed25519_scalar_sub, crypto_generichash_blake2b_state,
-
-};
+  crypto_core_ed25519_add, crypto_core_ed25519_scalar_random, 
+  crypto_core_ed25519_scalar_sub, crypto_core_ed25519_NONREDUCEDSCALARBYTES,
+  crypto_generichash_blake2b_state,
+}; 
 // use curve25519_dalek::scalar::Scalar;
-// use sodiumoxide::crypto::generichash::State;
-// use sodiumoxide::crypto::scalarmult::curve25519::SCALARBYTES;
 use std::ptr;
 use rand::{RngCore, rngs::OsRng};
+use subtle::ConstantTimeEq;
 
-// use curve25519_dalek::digest::Digest;
+use crate::*;
 
-const SCALARBYTES: usize = crypto_core_ed25519_SCALARBYTES as usize;
+const ED25519_SCALARBYTES: usize = crypto_core_ed25519_SCALARBYTES as usize;
 const ED25519_BYTES: usize = crypto_core_ed25519_BYTES as usize;
-
-
-pub const crypto_signcrypt_tbsbe_SECRETKEYBYTES: usize = 32;
-pub const crypto_signcrypt_tbsbe_PUBLICKEYBYTES: usize = 32;
-pub const crypto_signcrypt_tbsbe_SHAREDBYTES: usize = 32;
-pub const crypto_signcrypt_tbsbe_SEEDBYTES: usize = 64;
-pub const crypto_signcrypt_tbsbe_SIGNBYTES: usize = 32 + 32;
-pub const crypto_signcrypt_tbsbe_STATEBYTES: usize = 512;
-
-// const ED25519_BYTES: usize = 32;
-const ED25519_NONREDUCEDSCALARBYTES: usize = 64;
+const ED25519_NONREDUCEDSCALARBYTES: usize = crypto_core_ed25519_NONREDUCEDSCALARBYTES as usize;
 
 // #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct crypto_signcrypt_tbsbe_sign_state {
+pub struct TbsbeSignState {
   h: HashState,
-  nonce: [u8; SCALARBYTES],
+  nonce: [u8; ED25519_SCALARBYTES],
   r: [u8; ED25519_BYTES],
-  challenge: [u8; SCALARBYTES]
+  challenge: [u8; ED25519_SCALARBYTES]
 }
 
-impl Default for crypto_signcrypt_tbsbe_sign_state {
+impl Default for TbsbeSignState {
   fn default() -> Self {
     Self { 
       h: crypto_generichash_blake2b_state { opaque: [0u8; 384]}, 
@@ -52,16 +42,10 @@ impl Default for crypto_signcrypt_tbsbe_sign_state {
 
 pub fn sc25519_is_canonical(s: &[u8]) -> bool
 {
-  const L: [u8; 32] = [
-    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
-  ];
   let (mut c, mut n) = (0u8, 1u8);
   for i in (0..32).rev() {
-    c |= ((s[i] - L[i]) >> 8) & n;
-    n &= ((s[i] ^ L[i]) - 1) >> 8;
+    c |= ((s[i].wrapping_sub(L[i])).wrapping_shl(8)) & n;
+    n &= ((s[i] ^ L[i]).wrapping_sub(1)).wrapping_shl(8);
   }
   c != 0
 }
@@ -77,25 +61,24 @@ pub unsafe fn lp_update(h: &mut HashState, x: &[u8])
 }
 
 pub fn crypto_signcrypt_tbsbe_sign_before(
-  st: &mut crypto_signcrypt_tbsbe_sign_state,
-  shared_key: &mut[u8; crypto_signcrypt_tbsbe_SHAREDBYTES], sender_id: &[u8],
-  sender_id_len: usize, recipient_id: &[u8], recipient_id_len: usize,
-  info: &[u8], info_len: usize,
-  sender_sk: &[u8; SCALARBYTES as usize],
+  st: &mut TbsbeSignState,
+  shared_key: &mut[u8; SHAREDBYTES], sender_id: &[u8], 
+  recipient_id: &[u8], info: &[u8],
+  sender_sk: &[u8; ED25519_SCALARBYTES as usize],
   recipient_pk: &[u8; ED25519_BYTES as usize], m: &[u8]
   
 ) -> Result<(), ()>
 {
   let mut rs = [0u8; ED25519_NONREDUCEDSCALARBYTES];
-  let mut ks = [0u8; SCALARBYTES];
+  let mut ks = [0u8; ED25519_SCALARBYTES];
   let mut kp = [0u8; ED25519_BYTES];
   let mut noise = [0u8; 32];
-  // let mut st = st_ as crypto_signcrypt_tbsbe_sign_state;
 
-  if sender_id_len > 0xff || recipient_id_len > 0xff || info_len > 0xff {
+  if sender_id.len() > 0xff || recipient_id.len() > 0xff || info.len() > 0xff {
     return Err(())
   }
   OsRng.fill_bytes(&mut noise);
+
   // st.h = State::new(Some(ED25519_NONREDUCEDSCALARBYTES), None)?;
   // st.h.update(b"nonce");
   // st.h.update(&sender_sk[..SCALARBYTES]);
@@ -106,8 +89,8 @@ pub fn crypto_signcrypt_tbsbe_sign_before(
 
   unsafe {
     crypto_generichash_init(&mut st.h, ptr::null(), 0, ED25519_NONREDUCEDSCALARBYTES);
-    crypto_generichash_update(&mut st.h, b"nonce".as_ptr(), "nonce".len() as u64 - 1);
-    crypto_generichash_update(&mut st.h, sender_sk.as_ptr(), SCALARBYTES as u64);
+    crypto_generichash_update(&mut st.h, b"nonce".as_ptr(), "nonce".len() as u64);
+    crypto_generichash_update(&mut st.h, sender_sk.as_ptr(), ED25519_SCALARBYTES as u64);
     crypto_generichash_update(&mut st.h, recipient_pk.as_ptr(), ED25519_BYTES as u64);
     crypto_generichash_update(&mut st.h, noise.as_ptr(), noise.len() as u64);
     crypto_generichash_update(&mut st.h, m.as_ptr(), m.len() as u64);
@@ -118,8 +101,8 @@ pub fn crypto_signcrypt_tbsbe_sign_before(
     if crypto_scalarmult_ed25519_base_noclamp(st.r.as_mut_ptr(), st.nonce.as_ptr()) != 0 {
       return Err(())
     }
-    rs.copy_from_slice(&st.r[..SCALARBYTES]);
-    rs[SCALARBYTES..].fill(0);
+    rs[..ED25519_SCALARBYTES].copy_from_slice(&st.r[..ED25519_SCALARBYTES]);
+    rs[ED25519_SCALARBYTES..].fill(0);
     crypto_core_ed25519_scalar_reduce(rs.as_mut_ptr(), rs.as_ptr());
     crypto_core_ed25519_scalar_mul(ks.as_mut_ptr(), rs.as_ptr(), sender_sk.as_ptr());
     crypto_core_ed25519_scalar_add(ks.as_mut_ptr(), st.nonce.as_ptr(), ks.as_ptr());
@@ -127,16 +110,16 @@ pub fn crypto_signcrypt_tbsbe_sign_before(
       return Err(())
     }
   
-    crypto_generichash_init(&mut st.h, ptr::null(), 0, crypto_signcrypt_tbsbe_SHAREDBYTES);
-    crypto_generichash_update(&mut st.h, b"shared_key".as_ptr(), "shared_key".len() as u64 - 1);
+    crypto_generichash_init(&mut st.h, ptr::null(), 0, SHAREDBYTES);
+    crypto_generichash_update(&mut st.h, b"shared_key".as_ptr(), "shared_key".len() as u64);
     crypto_generichash_update(&mut st.h, kp.as_ptr(), kp.len() as u64);
     lp_update(&mut st.h, sender_id);
     lp_update(&mut st.h, recipient_id);
     lp_update(&mut st.h, info);
-    crypto_generichash_final(&mut st.h, shared_key.as_mut_ptr(), crypto_signcrypt_tbsbe_SHAREDBYTES);
+    crypto_generichash_final(&mut st.h, shared_key.as_mut_ptr(), SHAREDBYTES);
   
     crypto_generichash_init(&mut st.h, ptr::null(), 0, ED25519_NONREDUCEDSCALARBYTES);
-    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64 - 1);
+    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64);
     crypto_generichash_update(&mut st.h, st.r.as_ptr(), ED25519_BYTES as u64);
     lp_update(&mut st.h, sender_id);
     lp_update(&mut st.h, recipient_id);
@@ -147,9 +130,9 @@ pub fn crypto_signcrypt_tbsbe_sign_before(
 }
 
 pub fn crypto_signcrypt_tbsbe_sign_after(
-  st: &mut crypto_signcrypt_tbsbe_sign_state,
-  sig: &mut[u8; crypto_signcrypt_tbsbe_SIGNBYTES],
-  sender_sk: &[u8; SCALARBYTES], c: &[u8]
+  st: &mut TbsbeSignState,
+  sig: &mut[u8; SIGNBYTES],
+  sender_sk: &[u8; ED25519_SCALARBYTES], c: &[u8]
 ) -> Result<(),()>
 {
   let mut nonreduced = [0u8; ED25519_NONREDUCEDSCALARBYTES];
@@ -162,14 +145,13 @@ pub fn crypto_signcrypt_tbsbe_sign_after(
     crypto_core_ed25519_scalar_sub(sig[ED25519_BYTES..].as_mut_ptr(), sig[ED25519_BYTES..].as_ptr(), st.nonce.as_ptr());
     sig[..ED25519_BYTES].copy_from_slice(&st.r[..ED25519_BYTES]);
   }
-  
   Ok(())
 }
 
 pub fn  crypto_signcrypt_tbsbe_verify_before(
-  st: &mut crypto_signcrypt_tbsbe_sign_state,
-  shared_key: &mut[u8; crypto_signcrypt_tbsbe_SHAREDBYTES],
-  sig: &[u8; crypto_signcrypt_tbsbe_SIGNBYTES], sender_id: &[u8],
+  st: &mut TbsbeSignState,
+  shared_key: &mut[u8; SHAREDBYTES],
+  sig: &[u8; SIGNBYTES], sender_id: &[u8],
   recipient_id: &[u8], info: &[u8],
   sender_pk: &[u8; ED25519_BYTES],
   recipient_sk: &[u8; ED25519_BYTES]
@@ -177,35 +159,34 @@ pub fn  crypto_signcrypt_tbsbe_verify_before(
 {
   let mut kp = [0u8; ED25519_BYTES];
   let mut rs = [0u8; ED25519_NONREDUCEDSCALARBYTES];
-  let r = sig;
 
   if sender_id.len() > 0xff || recipient_id.len() > 0xff || info.len() > 0xff 
     || !sc25519_is_canonical(&sig[ED25519_BYTES..]) {
     return Err(())
   }
-  rs[..SCALARBYTES].copy_from_slice(&r[..SCALARBYTES]);
+  rs[..ED25519_SCALARBYTES].copy_from_slice(&sig[..ED25519_SCALARBYTES]);
 
   unsafe {
     crypto_core_ed25519_scalar_reduce(rs.as_mut_ptr(), rs.as_ptr());
     if crypto_scalarmult_ed25519_noclamp(kp.as_mut_ptr(), rs.as_ptr(), sender_pk.as_ptr()) != 0 {
       return Err(())
     }
-    crypto_core_ed25519_add(kp.as_mut_ptr(), r.as_ptr(), kp.as_ptr());
+    crypto_core_ed25519_add(kp.as_mut_ptr(), sig.as_ptr(), kp.as_ptr());
     if crypto_scalarmult_ed25519_noclamp(kp.as_mut_ptr(), recipient_sk.as_ptr(), kp.as_ptr()) != 0 {
       return Err(())
     }
   
-    crypto_generichash_init(&mut st.h, ptr::null(), 0, crypto_signcrypt_tbsbe_SHAREDBYTES);
-    crypto_generichash_update(&mut st.h, b"shared_key".as_ptr(),"shared_key".len() as u64 - 1);
+    crypto_generichash_init(&mut st.h, ptr::null(), 0, SHAREDBYTES);
+    crypto_generichash_update(&mut st.h, b"shared_key".as_ptr(),"shared_key".len() as u64);
     crypto_generichash_update(&mut st.h, kp.as_ptr(), kp.len() as u64);
     lp_update(&mut st.h, sender_id);
     lp_update(&mut st.h, recipient_id);
     lp_update(&mut st.h, info);
-    crypto_generichash_final(&mut st.h, shared_key.as_mut_ptr(), crypto_signcrypt_tbsbe_SHAREDBYTES);
+    crypto_generichash_final(&mut st.h, shared_key.as_mut_ptr(), SHAREDBYTES);
   
     crypto_generichash_init(&mut st.h, ptr::null(), 0, ED25519_NONREDUCEDSCALARBYTES);
-    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64 - 1);
-    crypto_generichash_update(&mut st.h, r.as_ptr(), ED25519_BYTES as u64);
+    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64);
+    crypto_generichash_update(&mut st.h, sig.as_ptr(), ED25519_BYTES as u64);
     lp_update(&mut st.h, sender_id);
     lp_update(&mut st.h, recipient_id);
     lp_update(&mut st.h, info);
@@ -214,10 +195,10 @@ pub fn  crypto_signcrypt_tbsbe_verify_before(
   Ok(())
 }
 
-pub fn crypto_signcrypt_tbsbe_verify_after(st: &mut crypto_signcrypt_tbsbe_sign_state,
-                    sig: &[u8; crypto_signcrypt_tbsbe_SIGNBYTES],
+pub fn crypto_signcrypt_tbsbe_verify_after(st: &mut TbsbeSignState,
+                    sig: &[u8; SIGNBYTES],
                     sender_pk: &[u8; ED25519_BYTES],
-                    c: &[u8], _c_len: usize
+                    c: &[u8]
                     )  -> Result<(),()>
 {
   let mut check_expected = [0u8; ED25519_BYTES];
@@ -240,23 +221,19 @@ pub fn crypto_signcrypt_tbsbe_verify_after(st: &mut crypto_signcrypt_tbsbe_sign_
     }
   }
 
-  use subtle::ConstantTimeEq;
-  let eq: bool = check_expected[..SCALARBYTES].ct_eq(&check_found[..SCALARBYTES]).into();
-  if !eq {
-    return Err(())
-  }
-  // if (sodium_memcmp(check_expected, check_found, SCALARBYTES).ct != 0) {
-  // }
+  
+  let eq: bool = check_expected[..ED25519_SCALARBYTES].ct_eq(&check_found[..ED25519_SCALARBYTES]).into();
+  if !eq { return Err(()) }
   Ok(())
 }
 
 pub fn crypto_signcrypt_tbsr_verify_public(
-  sig: &mut[u8; crypto_signcrypt_tbsbe_SIGNBYTES],
+  sig: &mut[u8; SIGNBYTES],
   sender_id: &[u8],  recipient_id: &[u8], info: &[u8],
-  sender_pk: &[u8; ED25519_BYTES], c: &[u8], c_len: usize
+  sender_pk: &[u8; ED25519_BYTES], c: &[u8]
 ) -> Result<(),()>
 {
-  let mut st = crypto_signcrypt_tbsbe_sign_state::default();
+  let mut st = TbsbeSignState::default();
 
   if sender_id.len() > 0xff || recipient_id.len() > 0xff || info.len() > 0xff ||
     !sc25519_is_canonical(&sig[ED25519_BYTES..]) {
@@ -264,19 +241,19 @@ pub fn crypto_signcrypt_tbsr_verify_public(
   }
   unsafe {
     crypto_generichash_init(&mut st.h, ptr::null(), 0, ED25519_NONREDUCEDSCALARBYTES);
-    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64 - 1);
+    crypto_generichash_update(&mut st.h, b"sign_key".as_ptr(), "sign_key".len() as u64);
     crypto_generichash_update(&mut st.h, sig.as_ptr(), ED25519_BYTES as u64);
     lp_update(&mut st.h, sender_id);
     lp_update(&mut st.h, recipient_id);
     lp_update(&mut st.h, info);
   }
 
-  crypto_signcrypt_tbsbe_verify_after(&mut st, sig, sender_pk, c, c_len)
+  crypto_signcrypt_tbsbe_verify_after(&mut st, sig, sender_pk, c)
 }
 
 pub fn crypto_signcrypt_tbsbe_keygen(
   pk: &mut[u8; ED25519_BYTES],
-  sk: &mut[u8; SCALARBYTES]
+  sk: &mut[u8; ED25519_SCALARBYTES]
 )
 {
   unsafe {
@@ -287,8 +264,8 @@ pub fn crypto_signcrypt_tbsbe_keygen(
 
 pub fn crypto_signcrypt_tbsbe_seed_keygen(
   pk: &mut[u8; ED25519_BYTES],
-  sk: &mut[u8; SCALARBYTES],
-  seed: &[u8; crypto_signcrypt_tbsbe_SEEDBYTES]
+  sk: &mut[u8; ED25519_SCALARBYTES],
+  seed: &[u8; SEEDBYTES]
 )
 {
   unsafe {

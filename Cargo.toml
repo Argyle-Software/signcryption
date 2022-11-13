@@ -1,0 +1,12 @@
+[package]
+name = "signcryption"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rand = {version = "0.8.5", features = ["getrandom"] }
+libsodium-sys-stable = {version = "1.19.22", features = ["minimal"] }
+subtle = "2.4.1"
+zeroize = {version = "1.5.7", features = ["zeroize_derive"] }
+# curve25519-dalek = "3.2.1"
+# sodiumoxide = "0.2.7"

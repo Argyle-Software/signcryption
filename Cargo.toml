@@ -8,5 +8,4 @@ rand = {version = "0.8.5", features = ["getrandom"] }
 libsodium-sys-stable = {version = "1.19.22", features = ["fetch-latest"] }
 subtle = "2.4.1"
 zeroize = {version = "1.5.7", features = ["zeroize_derive"] }
-# curve25519-dalek = "3.2.1"
-# sodiumoxide = "0.2.7"
+aes-gcm = "0.10.1"

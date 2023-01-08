@@ -3,35 +3,6 @@ use libsodium_sys::*;
 use std::ptr;
 use rand::{RngCore, rngs::OsRng};
 
-/// Convenience function for [`sign_before`]
-pub fn ed25519_sign_before(
-  state: &mut SignState,
-  shared_key: &mut[u8; SHAREDBYTES], sender_id: &[u8], 
-  recipient_id: &[u8], info: &[u8],
-  sender_sk: &[u8; SCALARBYTES as usize],
-  recipient_pk: &[u8; BYTES as usize], m: &[u8]
-) -> Result<(), SignCryptError>
-{
-  sign_before(
-    state, shared_key, sender_id, recipient_id, info, 
-    sender_sk, recipient_pk, m, Curve::Ed25519
-  )
-}
-
-/// Convenience function for [`sign_before`]
-pub fn ristretto255_sign_before(
-  state: &mut SignState,
-  shared_key: &mut[u8; SHAREDBYTES], sender_id: &[u8], 
-  recipient_id: &[u8], info: &[u8],
-  sender_sk: &[u8; SCALARBYTES as usize],
-  recipient_pk: &[u8; BYTES as usize], m: &[u8]
-) -> Result<(), SignCryptError>
-{
-  sign_before(
-    state, shared_key, sender_id, recipient_id, info, 
-    sender_sk, recipient_pk, m, Curve::Ristretto255
-  )
-}
 
 /// Message signing before encryption 
 /// 
@@ -50,7 +21,7 @@ pub fn sign_before(
   shared_key: &mut[u8; SHAREDBYTES], sender_id: &[u8], 
   recipient_id: &[u8], info: &[u8],
   sender_sk: &[u8; SECRETKEYBYTES],
-  recipient_pk: &[u8; BYTES as usize], m: &[u8],
+  recipient_pk: &[u8; BYTES as usize], msg: &[u8],
   curve: Curve
 ) -> Result<(), SignCryptError>
 {
@@ -71,7 +42,7 @@ pub fn sign_before(
     crypto_generichash_update(&mut state.h, sender_sk.as_ptr(), SCALARBYTES as u64);
     crypto_generichash_update(&mut state.h, recipient_pk.as_ptr(), BYTES as u64);
     crypto_generichash_update(&mut state.h, noise.as_ptr(), noise.len() as u64);
-    crypto_generichash_update(&mut state.h, m.as_ptr(), m.len() as u64);
+    crypto_generichash_update(&mut state.h, msg.as_ptr(), msg.len() as u64);
     crypto_generichash_final(&mut state.h, rs.as_mut_ptr(), NONREDUCEDSCALARBYTES);
     
     match curve {
@@ -122,23 +93,6 @@ pub fn sign_before(
   Ok(())
 }
 
-/// Convenience function for [`sign_after`]
-pub fn ed25519_sign_after(
-  state: &mut SignState, sig: &mut[u8; SIGNBYTES],
-  sender_sk: &[u8; SECRETKEYBYTES], ciphertext: &[u8]
-)
-{
-  sign_after(state, sig, sender_sk, ciphertext, Curve::Ed25519)
-}
-
-/// Convenience function for [`sign_after`]
-pub fn ristretto255_sign_after(
-  state: &mut SignState, sig: &mut[u8; SIGNBYTES],
-  sender_sk: &[u8; SECRETKEYBYTES], ciphertext: &[u8]
-)
-{
-  sign_after(state, sig, sender_sk, ciphertext, Curve::Ristretto255)
-}
 
 /// Signing after encryption 
 pub fn sign_after(

@@ -88,23 +88,6 @@ pub fn  verify_before(
   Ok(())
 }
 
-/// Convenience function for [`verify_after`]
-pub fn ed25519_verify_after(
-  st: &mut SignState, sig: &[u8; SIGNBYTES], 
-  sender_pk: &[u8; BYTES], c: &[u8]
-)  -> Result<(), SignCryptError>
-{
-  verify_after(st, sig, sender_pk, c, Curve::Ed25519)
-}
-
-/// Convenience function for [`verify_after`]
-pub fn ristretto255_verify_after(
-  st: &mut SignState, sig: &[u8; SIGNBYTES], 
-  sender_pk: &[u8; BYTES], c: &[u8]
-)  -> Result<(), SignCryptError>
-{
-  verify_after(st, sig, sender_pk, c, Curve::Ed25519)
-}
 
 /// Message verification after decryption
 pub fn verify_after(
@@ -159,25 +142,6 @@ pub fn verify_after(
   Ok(())
 }
 
-/// Convenience function for [`verify_public`]
-pub fn ed25519_verify_public(
-  sig: &mut[u8; SIGNBYTES],
-  sender_id: &[u8],  recipient_id: &[u8], info: &[u8],
-  sender_pk: &[u8; BYTES], c: &[u8]
-) -> Result<(), SignCryptError>
-{
-  verify_public(sig, sender_id, recipient_id, info, sender_pk, c, Curve::Ed25519)
-}
-
-/// Convenience function for [`verify_public`]
-pub fn ristretto255_verify_public(
-  sig: &mut[u8; SIGNBYTES],
-  sender_id: &[u8],  recipient_id: &[u8], info: &[u8],
-  sender_pk: &[u8; BYTES], c: &[u8]
-) -> Result<(), SignCryptError>
-{
-  verify_public(sig, sender_id, recipient_id, info, sender_pk, c, Curve::Ristretto255)
-}
 
 /// Verifies the data was signed by a specific sender to a receiver without enabling
 /// the ability to decrypt the ciphertext 

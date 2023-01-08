@@ -125,31 +125,31 @@ pub fn sign_before(
 /// Convenience function for [`sign_after`]
 pub fn ed25519_sign_after(
   state: &mut SignState, sig: &mut[u8; SIGNBYTES],
-  sender_sk: &[u8; SECRETKEYBYTES], c: &[u8]
+  sender_sk: &[u8; SECRETKEYBYTES], ciphertext: &[u8]
 )
 {
-  sign_after(state, sig, sender_sk, c, Curve::Ed25519)
+  sign_after(state, sig, sender_sk, ciphertext, Curve::Ed25519)
 }
 
 /// Convenience function for [`sign_after`]
 pub fn ristretto255_sign_after(
   state: &mut SignState, sig: &mut[u8; SIGNBYTES],
-  sender_sk: &[u8; SECRETKEYBYTES], c: &[u8]
+  sender_sk: &[u8; SECRETKEYBYTES], ciphertext: &[u8]
 )
 {
-  sign_after(state, sig, sender_sk, c, Curve::Ristretto255)
+  sign_after(state, sig, sender_sk, ciphertext, Curve::Ristretto255)
 }
 
 /// Signing after encryption 
 pub fn sign_after(
   state: &mut SignState, sig: &mut[u8; SIGNBYTES],
-  sender_sk: &[u8; SECRETKEYBYTES], c: &[u8],
+  sender_sk: &[u8; SECRETKEYBYTES], ciphertext: &[u8],
   curve: Curve
 )
 {
   let mut nonreduced = [0u8; NONREDUCEDSCALARBYTES];
   unsafe {
-    crypto_generichash_update(&mut state.h, c.as_ptr(), c.len() as u64);
+    crypto_generichash_update(&mut state.h, ciphertext.as_ptr(), ciphertext.len() as u64);
     crypto_generichash_final(&mut state.h, nonreduced.as_mut_ptr(), nonreduced.len());
     match curve {
       Curve::Ed25519 => {

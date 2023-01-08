@@ -15,7 +15,7 @@ pub fn ed25519_verify_before(
     info, sender_pk, recipient_sk, Curve::Ed25519
   )
 }
-
+ 
 /// Convenience function for [`verify_before`]
 pub fn ristretto255_verify_before(
   st: &mut SignState, shared_key: &mut[u8; SHAREDBYTES], sig: &[u8; SIGNBYTES], 
@@ -43,7 +43,7 @@ pub fn  verify_before(
     return Err(SignCryptError::InvalidLength)
   }
   if !sc25519_is_canonical(&sig[BYTES..]) {
-    return Err(SignCryptError::Generic)
+    return Err(SignCryptError::NonCanonicalSig)
   }
   rs[..SCALARBYTES].copy_from_slice(&sig[..SCALARBYTES]);
 
@@ -193,7 +193,7 @@ pub fn verify_public(
     return Err(SignCryptError::InvalidLength)
   }
   if !sc25519_is_canonical(&sig[BYTES..]) {
-    return Err(SignCryptError::NonCanonicalSignature) 
+    return Err(SignCryptError::NonCanonicalSig) 
   }
   unsafe {
     crypto_generichash_init(&mut st.h, ptr::null(), 0, NONREDUCEDSCALARBYTES);

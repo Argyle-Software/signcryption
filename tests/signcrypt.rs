@@ -1,7 +1,6 @@
 use signcryption::*;
 
 // Run through the full signcrypt workflow
-
 #[test]
 fn signcrypt_unsigncrypt_workflow() {
   let payload = b"All that is gold does not glitter";

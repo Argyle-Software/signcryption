@@ -17,7 +17,8 @@ This library currently depends on the libsodium-sys-stable crate. You will need 
 
 https://libsodium.gitbook.io/doc/installation
 
-Or simply use the `fetch-libsodium` feature of this crate on first use which will download and 
+Or simply use the [`fetch-libsodium`](https://github.com/Argyle-Software/signcryption/blob/5399fd13d0df35c5cdd0774d56c84901a5fe4f69/Cargo.toml#L19) 
+feature of this crate on first use which will download and 
 install the current stable version.
 
 
@@ -141,16 +142,17 @@ verify_public(
 
 Combining encryption and signing has flaws either way you order them:
 
-Encrypt then Sign: An attacker can replace your signature, making it seem as though
+*Encrypt then Sign*: An attacker can replace your signature, making it seem as though
 they encrypted the file.
 
-Sign then Encrypt: The recipient can re-encrypt the file and impersonate you sending the file to someone else.
+*Sign then Encrypt*: The recipient can re-encrypt the file and impersonate you sending the file to someone else.
 
 Signcryption performs signing both before and after the encryption stage, negating these flaws.
 
 ## Alternatives
 
-[Libsodium-Signcryption](https://github.com/jedisct1/libsodium-signcryption), written in C. This crate is based 
+This crate is based on the [Libsodium-Signcryption](https://github.com/jedisct1/libsodium-signcryption) 
+library, written in C. 
 
 ## Licensing
 

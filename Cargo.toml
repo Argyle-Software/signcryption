@@ -2,6 +2,13 @@
 name = "signcryption"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/Argyle-Software/signcryption" 
+authors = ["Mitchell Berry <foss@mitchellberry.com>"]
+description = "Library implementing the Toorani-Beheshti signcryption scheme instantiated over Ristretto255 or Ed25519"
+documentation = "https://docs.rs/signcryption"
+license = "MIT OR Apache-2.0"
+categories = ["cryptography"]
+keywords = ["signcryption", "signature", "signing", "encryption"]
 
 [dependencies]
 rand = {version = "0.8.5", features = ["getrandom"]}
@@ -13,7 +20,7 @@ aes-gcm = {version = "0.10.1", optional = true}
 [features]
 default = ["signcrypt"]
 
-# Turn off default features if you wish to use another 
+# Turn off default features if you wish to use another AEAD
 signcrypt = ["aes-gcm"]
 
 # Will download and install the latest version of libsodium

@@ -1,6 +1,6 @@
 [package]
 name = "signcryption"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 repository = "https://github.com/Argyle-Software/signcryption" 
 authors = ["Mitchell Berry <foss@mitchellberry.com>"]

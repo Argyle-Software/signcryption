@@ -60,7 +60,7 @@ assert_eq!(payload , &plaintext[..]);
 
 
 To use a different AEAD or for lower level control you'll need to run through the discrete step 
-functions themselves. To remove the aes-gcm crate dependency set `no-default-features = true` in `Cargo.toml`
+functions themselves. To remove the aes-gcm crate dependency set `default-features = false` in `Cargo.toml`
 
 ### Signcrypt
 

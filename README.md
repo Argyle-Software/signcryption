@@ -84,7 +84,7 @@ let info = "rust-signcryption".as_bytes()
 
 // Sign plaintext
 sign_before(
-  &mut state, &mut crypt_key, &SENDER_ID, &RECIPIENT_ID, &INFO, 
+  &mut state, &mut crypt_key, &sender_id, &recipient_id, &info, 
   &alice.expose_secret(), &bob.public, msg, Curve::Ed25519
 )?;
 

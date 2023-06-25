@@ -37,7 +37,7 @@ signcryption = "0.1"
 
 ## Usage
 
-The higher level functions complete the full workflow and handle encryption using the AES-GCM crate. 
+The higher level functions complete the full workflow and handles encryption using the AES-GCM crate. 
 
 ```rust
 // Default uses Ristretto255
@@ -142,17 +142,17 @@ verify_public(
 
 Combining encryption and signing has flaws either way you order them:
 
-*Encrypt then Sign*: An attacker can replace your signature, making it seem as though
+ - **Encrypt then Sign**: An attacker can replace your signature, making it seem as though
 they encrypted the file.
 
-*Sign then Encrypt*: The recipient can re-encrypt the file and impersonate you sending the file to someone else.
+ - **Sign then Encrypt**: The recipient can re-encrypt the file and impersonate you sending the file to someone else.
 
-Signcryption performs signing both before and after the encryption stage, negating these flaws.
+Signcryption performs signing *before and after* the encryption stage, negating these flaws.
 
 ## Alternatives
 
 This crate is based on the [Libsodium-Signcryption](https://github.com/jedisct1/libsodium-signcryption) 
-library, written in C. 
+library, written in C by Frank Denis. 
 
 ## Licensing
 

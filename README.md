@@ -37,7 +37,7 @@ signcryption = "0.1"
 
 ## Usage
 
-The higher level functions complete the full workflow and handles encryption using the AES-GCM crate. 
+The higher level functions automatically handle encryption using the [AES-GCM](https://crates.io/crates/aes-gcm) crate. 
 
 ```rust
 // Default uses Ristretto255

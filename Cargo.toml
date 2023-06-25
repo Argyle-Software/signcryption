@@ -1,6 +1,6 @@
 [package]
 name = "signcryption"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 repository = "https://github.com/Argyle-Software/signcryption" 
 authors = ["Mitchell Berry <foss@mitchellberry.com>"]
@@ -12,10 +12,10 @@ keywords = ["signcryption", "signature", "signing", "encryption"]
 
 [dependencies]
 rand = {version = "0.8.5", features = ["getrandom"]}
-libsodium-sys-stable = {version = "1.19.22"}
-subtle = "2.4.1"
-zeroize = {version = "1.5.7", features = ["zeroize_derive"]}
-aes-gcm = {version = "0.10.1", optional = true}
+libsodium-sys-stable = {version = "1.19.28"}
+subtle = "2.5.0"
+zeroize = {version = "1.6.0", features = ["zeroize_derive"]}
+aes-gcm = {version = "0.10.2", optional = true}
 
 [features]
 default = ["signcrypt"]

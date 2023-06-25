@@ -93,13 +93,11 @@ sign_before(
 // let cipher = ChaCha20Poly1305::new(&crypt_key);         //
 /////////////////////////////////////////////////////////////
 
-// Signature to pass to recipient
-let mut sig = [0u8; SIGNBYTES];
-
 // Sign ciphertext
+let mut sig = [0u8; SIGNBYTES];
 sign_after(&mut state, &mut sig, &alice.expose_secret(), &ciphertext, Curve::Ed25519);
 
-// Send ciphertext, signature and correct AAD to recipient
+// Send ciphertext, signature and any AAD to recipient
 ```
 
 ### Unsigncrypt
